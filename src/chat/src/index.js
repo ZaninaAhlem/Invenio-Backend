@@ -16,7 +16,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
 
-port = process.env.PORT || 3000;
+port = process.env.PORTIO || 4000;
 const publicDirectoryPath = path.join(__dirname, "../public");
 
 app.use(express.static(publicDirectoryPath));
@@ -25,12 +25,13 @@ io.on("connection", (socket) => {
   console.log("New web socket connection");
   var currentRoom = {};
 
-  socket.on("join", async ({ username, roomName }, callback) => {
+  socket.on("join", async ({ userId, roomName }, callback) => {
     // const { error, user } = addUser({ id: socket.id, username, roomName });
-    const _idUser = "607465f960fc3e33d83d0636";
+    // const userId = "607465f960fc3e33d83d0636";
     const _idCenter = "6074664360fc3e33d83d0638";
 
-    const user = await User.findById(_idUser);
+    console.log("joined", userId, " ", roomName);
+    const user = await User.findById(userId);
     user.socketId = socket.id;
     user.save();
     const center = await Center.findById(_idCenter);
@@ -39,10 +40,11 @@ io.on("connection", (socket) => {
     if (room.length == 0) {
       const room = new Room({
         name: roomName,
-        user: _idUser,
+        user: userId,
         center: _idCenter,
       });
       room.save();
+      console.log("room created", room);
     }
     currentRoom = room;
     Message.find().then((result) => {
@@ -59,8 +61,9 @@ io.on("connection", (socket) => {
   });
 
   //send to everyone
-  socket.on("sendMessage", async (message, callback) => {
-    const user = await User.findOne({ socketId: socket.id });
+  socket.on("sendMessage", async ({ id, message }, callback) => {
+    // const user = await User.findOne({ socketId: socket.id });
+    const user = await User.findById(id);
     const filter = new Filter();
 
     if (filter.isProfane(message)) {
@@ -73,24 +76,10 @@ io.on("connection", (socket) => {
     });
     aMessage.save().then(() => {
       io.to(currentRoom).emit("message", generateMessage(user.name, message));
+      console.log("message sent");
     });
     callback();
   });
-
-  // socket.on("disconnect", () => {
-  //   const user = removeUser(socket.id);
-
-  //   if (user) {
-  //     io.to(currentRoom).emit(
-  //       "message",
-  //       generateMessage("Admin", `${user.username} has left!`)
-  //     );
-  //     io.to(currentRoom).emit("roomData", {
-  //       room: currentRoom,
-  //       users: getUsersInRoom(currentRoom),
-  //     });
-  //   }
-  // });
 });
 
 server.listen(port, () => {

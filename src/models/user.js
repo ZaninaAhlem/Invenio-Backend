@@ -2,7 +2,6 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { ObjectID } = require("bson");
 
 const userSchema = new mongoose.Schema(
   {
@@ -16,44 +15,44 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      unique: true,
+      // unique: true,
       required: true,
       trim: true,
       lowercase: true,
-      validate(value) {
-        if (!validator.isEmail(value)) {
-          throw new Error("Email is invalid");
-        }
-      },
+      // validate(value) {
+      //   if (!validator.isEmail(value)) {
+      //     throw new Error("Email is invalid");
+      //   }
+      // },
     },
     password: {
       type: String,
       required: true,
-      minlength: 7,
+      // minlength: 7,
       trim: true,
-      validate(value) {
-        if (value.toLowerCase().includes("password")) {
-          throw new Error("invalid password");
-        }
-      },
+      // validate(value) {
+      //   if (value.toLowerCase().includes("password")) {
+      //     throw new Error("invalid password");
+      //   }
+      // },
     },
     age: {
       type: Number,
       default: 18,
-      validate(value) {
-        if (value < 0) {
-          throw new Error(" Age must be a positive number");
-        }
-      },
+      // validate(value) {
+      //   if (value < 0) {
+      //     throw new Error(" Age must be a positive number");
+      //   }
+      // },
     },
     dateOfBirth: {
-      type: Date,
+      type: Number,
       //required: true,
-      validate(value) {
-        if (!validator.isDate(value)) {
-          throw new Error("Invalid Date");
-        }
-      },
+      // validate(value) {
+      //   if (!validator.isDate(value)) {
+      //     throw new Error("Invalid Date");
+      //   }
+      // },
     },
     pays: {
       type: String,
@@ -75,7 +74,7 @@ const userSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Formation",
-        unique: true,
+        // unique: true,
       },
     ],
     followings: [
@@ -93,7 +92,7 @@ const userSchema = new mongoose.Schema(
       },
     ],
     avatar: {
-      type: Buffer,
+      type: String,
     },
   },
   {
@@ -111,7 +110,7 @@ userSchema.methods.toJSON = function () {
   const user = this;
   const userObject = user.toObject();
 
-  delete userObject.password;
+  // delete userObject.password;
   delete userObject.tokens;
   //delete userObject.avatar;
 
@@ -129,15 +128,16 @@ userSchema.methods.generateAuthToken = async function () {
 };
 
 userSchema.statics.findByCredentials = async (email, password) => {
+  console.log(email);
   const user = await User.findOne({ email });
 
   if (!user) {
     throw new Error("Unable to login");
   }
 
-  const isMatch = await bcrypt.compare(password, user.password);
+  // const isMatch = await bcrypt.compare(password, user.password);
 
-  if (!isMatch) {
+  if (password !== user.password) {
     throw new Error("Unable to login");
   }
 
@@ -145,15 +145,15 @@ userSchema.statics.findByCredentials = async (email, password) => {
 };
 
 //Hash the plain text password before saving
-userSchema.pre("save", async function (next) {
-  const user = this;
+// userSchema.pre("save", async function (next) {
+//   const user = this;
 
-  if (user.isModified("password")) {
-    user.password = await bcrypt.hash(user.password, 8);
-  }
+//   if (user.isModified("password")) {
+//     user.password = await bcrypt.hash(user.password, 8);
+//   }
 
-  next();
-});
+//   next();
+// });
 
 const User = mongoose.model("User", userSchema);
 

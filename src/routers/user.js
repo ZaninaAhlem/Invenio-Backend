@@ -3,6 +3,8 @@ const auth = require("../middleware/userAuth");
 const router = new express.Router();
 const Center = require("../models/center");
 const User = require("../models/user");
+const Room = require("../chat/models/room");
+const Message = require("../chat/models/message");
 const multer = require("multer");
 const sharp = require("sharp");
 const { sendWelcomeEmail, sendCancelationEmail } = require("../emails/account");
@@ -19,11 +21,13 @@ router.post("/users", async (req, res) => {
     console.log("email sent");
   } catch (error) {
     res.status(400).send(error);
+    console.log(error);
   }
 });
 
 //User login
 router.post("/users/login", async (req, res) => {
+  console.log(req.body);
   try {
     const user = await User.findByCredentials(
       req.body.email,
@@ -32,7 +36,8 @@ router.post("/users/login", async (req, res) => {
     const token = await user.generateAuthToken();
     res.send({ user, token });
   } catch (error) {
-    res.status(400).send();
+    res.status(400).send(error);
+    console.log(error);
   }
 });
 
@@ -45,6 +50,20 @@ router.get("/users/me/formations", auth, async (req, res) => {
     });
   } catch (error) {
     res.status(500).send(error);
+  }
+});
+
+//Read user's chatroom messages
+router.get("/users/:room", async (req, res) => {
+  const name = req.params.room;
+  try {
+    const room = await Room.findOne({ name });
+    Message.find({ room: room }).then((result) => {
+      res.status(200).send(result);
+    });
+  } catch (error) {
+    res.status(500).send(error);
+    console.log(error);
   }
 });
 
@@ -114,15 +133,19 @@ router.get("/users/follow", auth, async (req, res) => {
 });
 
 //User logout
-router.post("/users/logout", auth, async (req, res) => {
+router.post("/users/logout:id", async (req, res) => {
+  const _id = req.params.id;
   try {
-    req.user.tokens = req.user.tokens.filter((token) => {
+    const user = await User.findById(_id);
+
+    user.tokens = user.tokens.filter((token) => {
       return token.token !== req.token;
     });
-    await req.user.save();
+    await user.save();
     res.send();
   } catch (error) {
     res.status(500).send();
+    console.log(error);
   }
 });
 
@@ -132,7 +155,10 @@ router.get("/users/me", auth, async (req, res) => {
 });
 
 //Update user profile
-router.patch("/users/me", auth, async (req, res) => {
+router.patch("/users/:id", async (req, res) => {
+  const _id = req.params.id;
+  console.log(_id);
+  console.log(req.body);
   const updates = Object.keys(req.body);
   const allowedUpdates = [
     "name",
@@ -144,6 +170,7 @@ router.patch("/users/me", auth, async (req, res) => {
     "ville",
     "adresse",
     "codePostale",
+    "avatar",
   ];
   const isValidOperation = updates.every((update) =>
     allowedUpdates.includes(update)
@@ -153,32 +180,38 @@ router.patch("/users/me", auth, async (req, res) => {
     return res.status(400).send({ error: "Invalid updates" });
   }
   try {
+    const user = await User.findById(_id);
+
     updates.forEach((update) => {
-      req.user[update] = req.body[update];
+      user[update] = req.body[update];
     });
 
-    await req.user.save();
+    await user.save();
 
     /*const user = await User.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true,
     });*/
 
-    res.send(req.user);
+    res.send(user);
   } catch (error) {
+    console.log(error);
     res.status(500).send(error);
   }
 });
 
 //Delete user
-router.delete("/users/me", auth, async (req, res) => {
+router.delete("/users/:id", async (req, res) => {
+  const _id = req.params.id;
   try {
-    await req.user.remove();
-    sendCancelationEmail(req.user.email, req.user.name);
-    res.send(req.user);
-    console.log("email sent");
+    const user = await User.findById(_id);
+
+    await user.remove();
+    sendCancelationEmail(user.email, user.name);
+    res.send(user);
+    console.log("email sent to: ", user.name);
   } catch (error) {
-    res.status(500).send(errors);
+    res.status(500).send(error);
     console.log(error);
   }
 });

@@ -1,5 +1,6 @@
 const express = require("express");
 require("./db/mongoose");
+const cors = require("cors");
 const userRouter = require("./routers/user");
 const centerRouter = require("./routers/center");
 const formationRouter = require("./routers/formation");
@@ -9,7 +10,9 @@ const app = express();
 
 const port = process.env.PORT || 3000;
 
+app.use(cors());
 app.use(express.json());
+
 app.use(userRouter);
 app.use(centerRouter);
 app.use(formationRouter);
