@@ -14,7 +14,13 @@ const Center = require("../../models/center");
 
 const app = express();
 const server = http.createServer(app);
-const io = socketio(server);
+const io = socketio(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+// const io = socketio(server);
 
 port = process.env.PORTIO || 4000;
 const publicDirectoryPath = path.join(__dirname, "../public");
@@ -25,23 +31,21 @@ io.on("connection", (socket) => {
   console.log("New web socket connection");
   var currentRoom = {};
 
-  socket.on("join", async ({ userId, roomName }, callback) => {
+  socket.on("join", async ({ userId, centerId }, callback) => {
     // const { error, user } = addUser({ id: socket.id, username, roomName });
     // const userId = "607465f960fc3e33d83d0636";
-    const _idCenter = "6074664360fc3e33d83d0638";
 
-    console.log("joined", userId, " ", roomName);
     const user = await User.findById(userId);
+    const center = await Center.findById(centerId);
+    console.log("joined", user.name, " ", center.name);
     user.socketId = socket.id;
     user.save();
-    const center = await Center.findById(_idCenter);
 
-    const room = await Room.find({ name: roomName });
+    const room = await Room.find({ user: userId });
     if (room.length == 0) {
       const room = new Room({
-        name: roomName,
         user: userId,
-        center: _idCenter,
+        center: centerId,
       });
       room.save();
       console.log("room created", room);
@@ -52,30 +56,33 @@ io.on("connection", (socket) => {
     });
 
     socket.join(currentRoom);
-    io.to(currentRoom).emit("roomData", {
-      room: currentRoom,
-      users: getUsersInRoom(currentRoom),
-    });
+    // io.to(currentRoom).emit("roomData", {
+    //   room: currentRoom,
+    //   users: getUsersInRoom(currentRoom),
+    // });
 
     callback();
   });
 
   //send to everyone
-  socket.on("sendMessage", async ({ id, message }, callback) => {
+  socket.on("sendMessage", async ({ id, message, room }, callback) => {
     // const user = await User.findOne({ socketId: socket.id });
-    const user = await User.findById(id);
+    var user = await User.findById(id);
+    if (!user) {
+      user = await Center.findById(id);
+    }
     const filter = new Filter();
 
     if (filter.isProfane(message)) {
       return callback("Profanity is not allowed!");
     }
     const aMessage = new Message({
-      room: currentRoom[0],
+      room: room,
       msg: message,
       sender: user.name,
     });
     aMessage.save().then(() => {
-      io.to(currentRoom).emit("message", generateMessage(user.name, message));
+      io.to(room).emit("message", generateMessage(user.name, message));
       console.log("message sent");
     });
     callback();

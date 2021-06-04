@@ -95,7 +95,7 @@ centerSchema.methods.toJSON = function () {
   const center = this;
   const centerObject = center.toObject();
 
-  delete centerObject.password;
+  // delete centerObject.password;
   delete centerObject.tokens;
 
   return centerObject;
@@ -122,24 +122,24 @@ centerSchema.statics.findByCredentials = async (email, password) => {
     throw new Error("Unable to login");
   }
 
-  const isMatch = await bcrypt.compare(password, center.password);
+  // const isMatch = await bcrypt.compare(password, center.password);
 
-  if (!isMatch) {
+  if (password !== center.password) {
     throw new Error("Unable to login");
   }
 
   return center;
 };
 
-centerSchema.pre("save", async function (next) {
-  const center = this;
+// centerSchema.pre("save", async function (next) {
+//   const center = this;
 
-  if (center.isModified("password")) {
-    center.password = await bcrypt.hash(center.password, 8);
-  }
+//   if (center.isModified("password")) {
+//     center.password = await bcrypt.hash(center.password, 8);
+//   }
 
-  next();
-});
+//   next();
+// });
 
 const Center = mongoose.model("Center", centerSchema);
 

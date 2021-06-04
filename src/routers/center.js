@@ -2,6 +2,8 @@ const express = require("express");
 const auth = require("../middleware/centerAuth");
 const router = new express.Router();
 const Center = require("../models/center");
+const Room = require("../chat/models/room");
+const Message = require("../chat/models/message");
 const multer = require("multer");
 const sharp = require("sharp");
 const { sendWelcomeEmail, sendCancelationEmail } = require("../emails/account");
@@ -9,14 +11,16 @@ const { sendWelcomeEmail, sendCancelationEmail } = require("../emails/account");
 //Create a center
 router.post("/centers", async (req, res) => {
   const center = new Center(req.body);
+  console.log(center);
 
   try {
-    await center.save();
+    // await center.save();
     sendWelcomeEmail(center.email, center.name);
     const token = await center.generateAuthToken();
     res.status(201).send({ center, token });
   } catch (error) {
     res.status(400).send(error);
+    console.log(error);
   }
 });
 
@@ -27,10 +31,12 @@ router.post("/centers/login", async (req, res) => {
       req.body.email,
       req.body.password
     );
+    console.log(center);
     const token = await center.generateAuthToken();
     res.send({ center, token });
   } catch (error) {
     res.status(400).send();
+    console.log(error);
   }
 });
 
@@ -41,7 +47,6 @@ router.post("/centers/logout", auth, async (req, res) => {
       return token.token !== req.token;
     });
     await req.center.save();
-    res.send();
   } catch (error) {
     res.status(500).send();
   }
@@ -50,6 +55,20 @@ router.post("/centers/logout", auth, async (req, res) => {
 //Read center profile
 router.get("/centers/me", auth, async (req, res) => {
   res.send(req.center);
+});
+
+//Read center's chatroom messages
+router.get("/centers/:room", async (req, res) => {
+  const name = req.params.room;
+  try {
+    const room = await Room.findOne({ name });
+    Message.find({ room: room }).then((result) => {
+      res.status(200).send(result);
+    });
+  } catch (error) {
+    res.status(500).send(error);
+    console.log(error);
+  }
 });
 
 //Read Followers
@@ -80,6 +99,7 @@ router.patch("/centers/me", auth, async (req, res) => {
   );
 
   if (!isValidOperation) {
+    console.log("Invalid updates");
     return res.status(400).send({ error: "Invalid updates" });
   }
   try {
@@ -89,8 +109,10 @@ router.patch("/centers/me", auth, async (req, res) => {
 
     await req.center.save();
 
+    console.log("updated");
     res.send(req.center);
   } catch (error) {
+    console.log(error);
     res.status(500).send(error);
   }
 });

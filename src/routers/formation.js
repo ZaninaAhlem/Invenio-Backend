@@ -215,6 +215,7 @@ router.post(
   }
 );
 
+//Get an image
 router.get("/formations/:id/image", async (req, res) => {
   try {
     const _id = req.params.id;

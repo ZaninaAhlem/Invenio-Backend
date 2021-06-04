@@ -31,7 +31,7 @@ const formationSchema = new mongoose.Schema(
       required: true,
     },
     image: {
-      type: Buffer,
+      type: String,
     },
   },
   {
@@ -43,7 +43,7 @@ formationSchema.methods.toJSON = function () {
   const formation = this;
   const formationSchema = formation.toObject();
 
-  delete formationSchema.image;
+  // delete formationSchema.image;
 
   return formationSchema;
 };
