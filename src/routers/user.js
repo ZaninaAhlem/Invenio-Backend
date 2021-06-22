@@ -6,7 +6,9 @@ const User = require("../models/user");
 const Room = require("../chat/models/room");
 const Message = require("../chat/models/message");
 const multer = require("multer");
-const sharp = require("sharp");
+const path = require("path");
+const fs = require("fs");
+const uniqid = require("uniqid");
 const { sendWelcomeEmail, sendCancelationEmail } = require("../emails/account");
 
 //Create a user
@@ -27,7 +29,6 @@ router.post("/users", async (req, res) => {
 
 //User login
 router.post("/users/login", async (req, res) => {
-  console.log(req.body);
   try {
     const user = await User.findByCredentials(
       req.body.email,
@@ -46,9 +47,10 @@ router.get("/users/me/formations", auth, async (req, res) => {
   try {
     const user = req.user;
     user.populate("formations").execPopulate(function (error, user) {
-      res.send(user.formations);
+      res.status(200).send(user.formations);
     });
   } catch (error) {
+    console.log(error);
     res.status(500).send(error);
   }
 });
@@ -68,7 +70,7 @@ router.get("/users/:room", async (req, res) => {
 });
 
 //follow a center
-router.post("/users/follow/:id", auth, async (req, res) => {
+router.post("/follow/:id", auth, async (req, res) => {
   try {
     var exist = false;
     const center = await Center.findById(req.params.id);
@@ -85,16 +87,18 @@ router.post("/users/follow/:id", auth, async (req, res) => {
       req.user.followings.push(centerId);
       await center.save();
       await req.user.save();
+      console.log("followed");
       res.send(center);
     }
     res.status(404).send({ message: "already following" });
   } catch (error) {
+    console.log(error);
     res.status(500).send(error);
   }
 });
 
 //Unfollow a center
-router.post("/users/unfollow/:id", auth, async (req, res) => {
+router.post("/unfollow/:id", auth, async (req, res) => {
   try {
     const center = await Center.findById(req.params.id);
     if (!center) {
@@ -113,6 +117,7 @@ router.post("/users/unfollow/:id", auth, async (req, res) => {
         center.save();
       }
     }
+    console.log("unfollowed");
     res.send({ message: "successfully unfollowed" });
   } catch (error) {
     res.status(500).send(error);
@@ -133,15 +138,12 @@ router.get("/users/follow", auth, async (req, res) => {
 });
 
 //User logout
-router.post("/users/logout:id", async (req, res) => {
-  const _id = req.params.id;
+router.post("/users/logout", auth, async (req, res) => {
   try {
-    const user = await User.findById(_id);
-
-    user.tokens = user.tokens.filter((token) => {
+    req.user.tokens = req.user.tokens.filter((token) => {
       return token.token !== req.token;
     });
-    await user.save();
+    await req.user.save();
     res.send();
   } catch (error) {
     res.status(500).send();
@@ -150,15 +152,13 @@ router.post("/users/logout:id", async (req, res) => {
 });
 
 //Read user Profile
-router.get("/users/me", auth, async (req, res) => {
-  res.send(req.user);
+router.get("/profile", auth, (req, res) => {
+  res.status(200).send(req.user);
 });
 
 //Update user profile
 router.patch("/users/:id", async (req, res) => {
   const _id = req.params.id;
-  console.log(_id);
-  console.log(req.body);
   const updates = Object.keys(req.body);
   const allowedUpdates = [
     "name",
@@ -216,38 +216,44 @@ router.delete("/users/:id", async (req, res) => {
   }
 });
 
-const upload = multer({
-  limits: {
-    fileSize: 1000000000,
-  },
-  fileFilter(req, file, callback) {
-    if (!file.originalname.match(/\.(jpg|png|jpeg)$/)) {
-      return callback(new Error("PLease upload an image"));
-    }
+// const upload = multer({
+//   dest: "../upload/avatar",
+//   limits: {
+//     fileSize: 1000000000,
+//   },
+//   fileFilter(req, file, callback) {
+//     if (!file.originalname.match(/\.(jpg|png|jpeg)$/)) {
+//       return callback(new Error("PLease upload an image"));
+//     }
 
-    callback(undefined, true);
-  },
-});
+//     callback(undefined, true);
+//   },
+// });
 
-//Upload user avatar
-router.post(
-  "/users/me/avatar",
-  auth,
-  upload.single("avatar"),
-  async (req, res) => {
-    const buffer = await sharp(req.file.buffer)
-      .resize({ width: 250, height: 250 })
-      .png()
-      .toBuffer();
+// router.post("/upload/avatar", upload.single("file"), async (req, res) => {
+//   const tempPath = req.file.path;
+//   const id = uniqid();
+//   const targetPath = path.join(__dirname, `../upload/avatar/${id}.png`);
 
-    req.user.avatar = buffer;
-    await req.user.save();
-    res.send();
-  },
-  (error, req, res, next) => {
-    res.status(400).send({ error: error.message });
-  }
-);
+//   if (path.extname(req.file.originalname).toLowerCase() === ".png") {
+//     fs.rename(tempPath, targetPath, (err) => {
+//       if (err) {
+//         return console.log(err);
+//       }
+//       console.log("id", id);
+//       res.status(200).send(id);
+//     });
+//   } else {
+//     fs.unlink(tempPath, (err) => {
+//       if (err) return console.log(err);
+
+//       res
+//         .status(403)
+//         .contentType("text/plain")
+//         .send("Only .png files are allowed!");
+//     });
+//   }
+// });
 
 //Delete user avatar
 router.delete("/users/me/avatar", auth, async (req, res) => {

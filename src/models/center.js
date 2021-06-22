@@ -37,6 +37,22 @@ const centerSchema = new mongoose.Schema(
       type: String,
       //required: true,
     },
+    bio: {
+      type: String,
+      //required: true,
+    },
+    specialities: {
+      type: String,
+      //required: true,
+    },
+    type: {
+      type: String,
+      //required: true,
+    },
+    founded: {
+      type: String,
+      //required: true,
+    },
     adresse: {
       type: String,
       //required: true,
@@ -71,7 +87,7 @@ const centerSchema = new mongoose.Schema(
       },
     ],
     avatar: {
-      type: Buffer,
+      type: String,
     },
   },
   {
@@ -87,6 +103,12 @@ centerSchema.virtual("formations", {
 
 centerSchema.virtual("rooms", {
   ref: "Room",
+  localField: "_id",
+  foreignField: "centerId",
+});
+
+centerSchema.virtual("formateurs", {
+  ref: "Formateur",
   localField: "_id",
   foreignField: "center",
 });

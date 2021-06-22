@@ -3,9 +3,12 @@ const centerAuth = require("../middleware/centerAuth");
 const userAuth = require("../middleware/userAuth");
 const router = new express.Router();
 const multer = require("multer");
-const sharp = require("sharp");
 const Formation = require("../models/formation");
 const Center = require("../models/center");
+const InscriptionForm = require("../models/inscriptionForm");
+const path = require("path");
+const fs = require("fs");
+const uniqid = require("uniqid");
 
 //post a formation
 router.post("/formations", centerAuth, async (req, res) => {
@@ -36,8 +39,9 @@ router.get("/formations", async (req, res) => {
   const sort = {};
 
   if (req.query.sortBy) {
-    const parts = req.query.sortBy.split("_");
-    sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
+    // const parts = req.query.sortBy.split("_");
+    // sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
+    sort = -1;
   }
 
   try {
@@ -48,6 +52,7 @@ router.get("/formations", async (req, res) => {
       .exec();
     res.send(formations);
   } catch (error) {
+    console.log(error);
     res.status(500).send(error);
   }
 });
@@ -58,8 +63,8 @@ router.get("/center/formations/:id", async (req, res) => {
   const sort = {};
 
   if (req.query.sortBy) {
-    const parts = req.query.sortBy.split("_");
-    sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
+    // const parts = req.query.sortBy.split("_");
+    sort = -1;
   }
 
   try {
@@ -91,43 +96,39 @@ router.get("/formation/:id", async (req, res) => {
     if (!formation) {
       return res.status(404).send();
     }
-    res.send(formation);
+    res.status(200).send(formation);
   } catch (error) {
-    res.status(500).send(error);
-  }
-});
-
-//inscription
-router.post("/formations/:id", userAuth, async (req, res) => {
-  //formation's id
-  try {
-    const formation = await Formation.findById(req.params.id);
-    if (!formation) {
-      return res.status(404).send();
-    }
-    const id = req.user._id;
-    const formationId = formation.id;
-    formation.subscribers.push(id);
-    req.user.formations.push(formationId);
-    await formation.save();
-    await req.user.save();
-    res.send(formation);
-  } catch (error) {
+    console.log(error);
     res.status(500).send(error);
   }
 });
 
 //Read Subscribers
-router.get("/formations/inscriptions/:id", async (req, res) => {
+router.get("/formations/inscriptions", centerAuth, async (req, res) => {
+  center = req.center;
   try {
-    const formation = await Formation.findById(req.params.id);
-    if (!formation) {
-      return res.status(404).send();
-    }
-    formation.populate("subscribers").execPopulate(function (error, formation) {
-      res.send(formation.subscribers);
-    });
+    center
+      .populate({
+        path: "formations",
+      })
+      .execPopulate(function (error, formation) {
+        var subscribers = [];
+        for (const val of center.formations) {
+          var subscriber = {
+            id: val._id,
+            title: val.title,
+            subscribers: val.subscribers,
+          };
+          subscribers.push(subscriber);
+        }
+        res.status(200).send(subscribers);
+      });
+
+    // formation.populate("subscribers").execPopulate(function (error, formation) {
+    //   res.send(formation.subscribers);
+    // });
   } catch (error) {
+    console.log(error);
     res.status(500).send(error);
   }
 });
@@ -135,12 +136,20 @@ router.get("/formations/inscriptions/:id", async (req, res) => {
 //Update formation
 router.patch("/formations/:id", centerAuth, async (req, res) => {
   const updates = Object.keys(req.body);
-  const allowedUpdates = ["title", "description", "date"];
+  const allowedUpdates = [
+    "title",
+    "description",
+    "date",
+    "category",
+    "image",
+    "inscriptionForm",
+  ];
   const isValidOperation = updates.every((update) =>
     allowedUpdates.includes(update)
   );
 
   if (!isValidOperation) {
+    console.log("Invalid updates");
     return res.status(400).send({ error: "Invalid updates" });
   }
   try {
@@ -160,6 +169,7 @@ router.patch("/formations/:id", centerAuth, async (req, res) => {
     await formation.save();
     res.send(formation);
   } catch (error) {
+    console.log(error);
     res.status(500).send(error);
   }
 });
@@ -181,6 +191,7 @@ router.delete("/formations/:id", centerAuth, async (req, res) => {
 });
 
 const upload = multer({
+  dest: "upload",
   limits: {
     fileSize: 1000000000,
   },
@@ -193,39 +204,38 @@ const upload = multer({
   },
 });
 
-//Post an image
-router.post(
-  "/formations/:id/image",
-  centerAuth,
-  upload.single("image"),
-  async (req, res) => {
-    const _id = req.params.id;
+router.post("/upload", upload.single("file"), async (req, res) => {
+  const tempPath = req.file.path;
+  const id = uniqid();
+  const targetPath = path.join(__dirname, `../upload/${id}.png`);
 
-    const formation = await Formation.findById(_id);
-    const buffer = await sharp(req.file.buffer)
-      .resize({ width: 250, height: 250 })
-      .png()
-      .toBuffer();
-    formation.image = buffer;
-    await formation.save();
-    res.send(formation);
-  },
-  (error, req, res, next) => {
-    res.status(400).send({ error: error.message });
+  if (path.extname(req.file.originalname).toLowerCase() === ".png") {
+    fs.rename(tempPath, targetPath, (err) => {
+      if (err) {
+        return console.log(err);
+      }
+      console.log("id", id);
+      res.status(200).send(id);
+    });
+  } else {
+    fs.unlink(tempPath, (err) => {
+      if (err) return console.log(err);
+
+      res
+        .status(403)
+        .contentType("text/plain")
+        .send("Only .png files are allowed!");
+    });
   }
-);
+});
 
 //Get an image
-router.get("/formations/:id/image", async (req, res) => {
+router.get("/image/:id", async (req, res) => {
   try {
     const _id = req.params.id;
 
-    const formation = await Formation.findById(_id);
-    if (!formation || !formation.image) {
-      throw new Error();
-    }
     res.set("Content-Type", "image/png");
-    res.send(formation.image);
+    res.send(path.join(__dirname, `../upload/cardImage/${_id}.png`));
   } catch (error) {
     res.status(500).send();
   }

@@ -77,6 +77,23 @@ const userSchema = new mongoose.Schema(
         // unique: true,
       },
     ],
+    notifications: [
+      {
+        center: {
+          type: String,
+        },
+        avatar: {
+          type: String,
+        },
+        formation: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Formation",
+        },
+        notification: {
+          type: String,
+        },
+      },
+    ],
     followings: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -103,7 +120,7 @@ const userSchema = new mongoose.Schema(
 userSchema.virtual("rooms", {
   ref: "Room",
   localField: "_id",
-  foreignField: "user",
+  foreignField: "userId",
 });
 
 userSchema.methods.toJSON = function () {

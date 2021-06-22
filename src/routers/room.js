@@ -29,4 +29,18 @@ router.get("/room/users/:id", async (req, res) => {
   }
 });
 
+//Read chatroom messages
+router.get("/messages/:id", async (req, res) => {
+  const _id = req.params.id;
+  try {
+    const room = await Room.findById(_id);
+    Message.find({ room: room }).then((result) => {
+      res.status(200).send(result);
+    });
+  } catch (error) {
+    res.status(500).send(error);
+    console.log(error);
+  }
+});
+
 module.exports = router;

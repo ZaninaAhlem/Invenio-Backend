@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const validator = require("validator");
 
 const formationSchema = new mongoose.Schema(
   {
@@ -16,15 +15,23 @@ const formationSchema = new mongoose.Schema(
     },
     subscribers: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        //unique: true,
+        name: {
+          type: String,
+        },
+        avatar: {
+          type: String,
+        },
       },
     ],
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "Center",
+    },
+    inscriptionForm: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: "InscriptionForm",
     },
     category: {
       type: String,
@@ -42,8 +49,6 @@ const formationSchema = new mongoose.Schema(
 formationSchema.methods.toJSON = function () {
   const formation = this;
   const formationSchema = formation.toObject();
-
-  // delete formationSchema.image;
 
   return formationSchema;
 };

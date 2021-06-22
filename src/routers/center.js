@@ -5,13 +5,14 @@ const Center = require("../models/center");
 const Room = require("../chat/models/room");
 const Message = require("../chat/models/message");
 const multer = require("multer");
-const sharp = require("sharp");
+const path = require("path");
+const fs = require("fs");
+const uniqid = require("uniqid");
 const { sendWelcomeEmail, sendCancelationEmail } = require("../emails/account");
 
 //Create a center
 router.post("/centers", async (req, res) => {
   const center = new Center(req.body);
-  console.log(center);
 
   try {
     // await center.save();
@@ -31,7 +32,6 @@ router.post("/centers/login", async (req, res) => {
       req.body.email,
       req.body.password
     );
-    console.log(center);
     const token = await center.generateAuthToken();
     res.send({ center, token });
   } catch (error) {
@@ -57,17 +57,20 @@ router.get("/centers/me", auth, async (req, res) => {
   res.send(req.center);
 });
 
-//Read center's chatroom messages
-router.get("/centers/:room", async (req, res) => {
-  const name = req.params.room;
+//Read center by id
+router.get("/centers/:id", async (req, res) => {
+  const _id = req.params.id;
+
   try {
-    const room = await Room.findOne({ name });
-    Message.find({ room: room }).then((result) => {
-      res.status(200).send(result);
-    });
+    const center = await Center.findById(_id);
+
+    if (!center) {
+      return res.status(404).send();
+    }
+    res.status(200).send(center);
   } catch (error) {
-    res.status(500).send(error);
     console.log(error);
+    res.status(500).send(error);
   }
 });
 
@@ -93,6 +96,10 @@ router.patch("/centers/me", auth, async (req, res) => {
     "pays",
     "adresse",
     "avatar",
+    "bio",
+    "type",
+    "founded",
+    "specialities",
   ];
   const isValidOperation = updates.every((update) =>
     allowedUpdates.includes(update)
@@ -131,6 +138,7 @@ router.delete("/centers/me", auth, async (req, res) => {
 });
 
 const upload = multer({
+  dest: "../upload",
   limits: {
     fileSize: 1000000000,
   },
@@ -143,25 +151,34 @@ const upload = multer({
   },
 });
 
-//Upload avatar
-router.post(
-  "/centers/me/avatar",
-  auth,
-  upload.single("avatar"),
-  async (req, res) => {
-    const buffer = await sharp(req.file.buffer)
-      .resize({ width: 250, height: 250 })
-      .png()
-      .toBuffer();
+router.post("/upload/avatar", upload.single("file"), async (req, res) => {
+  const tempPath = req.body.uri;
+  const id = uniqid();
+  const targetPath = path.join(__dirname, `../upload/${id}.png`);
 
-    req.center.avatar = buffer;
-    await req.center.save();
-    res.send();
-  },
-  (error, req, res, next) => {
-    res.status(400).send({ error: error.message });
+  if (
+    path.extname(req.body.name).toLowerCase() === ".png" ||
+    path.extname(req.body.name).toLowerCase() === ".jpg" ||
+    path.extname(req.body.name).toLowerCase() === ".jpeg"
+  ) {
+    fs.rename(tempPath, targetPath, (err) => {
+      if (err) {
+        return console.log("err ", err);
+      }
+      console.log("id", id);
+      res.status(200).send(id);
+    });
+  } else {
+    fs.unlink(tempPath, (err) => {
+      if (err) return console.log(err);
+
+      res
+        .status(403)
+        .contentType("text/plain")
+        .send("Only .png files are allowed!");
+    });
   }
-);
+});
 
 //Delete avatar
 router.delete("/centers/me/avatar", auth, async (req, res) => {

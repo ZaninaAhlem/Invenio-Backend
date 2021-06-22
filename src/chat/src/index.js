@@ -31,21 +31,29 @@ io.on("connection", (socket) => {
   console.log("New web socket connection");
   var currentRoom = {};
 
-  socket.on("join", async ({ userId, centerId }, callback) => {
+  socket.on("join", async ({ roomId, userId, centerId }, callback) => {
     // const { error, user } = addUser({ id: socket.id, username, roomName });
     // const userId = "607465f960fc3e33d83d0636";
+    var user = {};
+    var center = {};
 
-    const user = await User.findById(userId);
-    const center = await Center.findById(centerId);
+    if (userId) {
+      user = await User.findById(userId);
+    }
+    if (centerId) {
+      center = await Center.findById(centerId);
+    }
     console.log("joined", user.name, " ", center.name);
-    user.socketId = socket.id;
-    user.save();
 
-    const room = await Room.find({ user: userId });
-    if (room.length == 0) {
-      const room = new Room({
-        user: userId,
-        center: centerId,
+    var room = {};
+    if (roomId) {
+      room = await Room.findById(roomId);
+    } else {
+      room = new Room({
+        centerId: center._id,
+        userId: user._id,
+        user: { name: user.name, avatar: user.avatar },
+        center: { name: center.name, avatar: center.avatar },
       });
       room.save();
       console.log("room created", room);
@@ -66,7 +74,6 @@ io.on("connection", (socket) => {
 
   //send to everyone
   socket.on("sendMessage", async ({ id, message, room }, callback) => {
-    // const user = await User.findOne({ socketId: socket.id });
     var user = await User.findById(id);
     if (!user) {
       user = await Center.findById(id);
