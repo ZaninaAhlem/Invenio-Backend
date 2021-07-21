@@ -30,10 +30,18 @@ router.post("/users", async (req, res) => {
 //User login
 router.post("/users/login", async (req, res) => {
   try {
-    const user = await User.findByCredentials(
-      req.body.email,
-      req.body.password
-    );
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      console.log("error email");
+      return res.send({ user: null, token: null });
+    }
+
+    if (req.body.password !== user.password) {
+      console.log("error pass");
+      return res.send({ user: null, token: null });
+    }
+
     const token = await user.generateAuthToken();
     res.send({ user, token });
   } catch (error) {
@@ -144,10 +152,11 @@ router.post("/users/logout", auth, async (req, res) => {
       return token.token !== req.token;
     });
     await req.user.save();
+    console.log("logged out");
     res.send();
   } catch (error) {
-    res.status(500).send();
     console.log(error);
+    res.status(500).send(error);
   }
 });
 
@@ -216,44 +225,45 @@ router.delete("/users/:id", async (req, res) => {
   }
 });
 
-// const upload = multer({
-//   dest: "../upload/avatar",
-//   limits: {
-//     fileSize: 1000000000,
-//   },
-//   fileFilter(req, file, callback) {
-//     if (!file.originalname.match(/\.(jpg|png|jpeg)$/)) {
-//       return callback(new Error("PLease upload an image"));
-//     }
+const storage = multer.diskStorage({});
 
-//     callback(undefined, true);
-//   },
-// });
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image")) {
+    cb(null, true);
+  } else {
+    cb("invalid image file!", false);
+  }
+};
+const upload = multer({ storage, fileFilter });
 
-// router.post("/upload/avatar", upload.single("file"), async (req, res) => {
-//   const tempPath = req.file.path;
-//   const id = uniqid();
-//   const targetPath = path.join(__dirname, `../upload/avatar/${id}.png`);
+router.post("/upload/useravatar", upload.single("file"), async (req, res) => {
+  const tempPath = req.file.path;
+  const id = uniqid();
+  const targetPath = path.join(__dirname, `../upload/${id}.png`);
 
-//   if (path.extname(req.file.originalname).toLowerCase() === ".png") {
-//     fs.rename(tempPath, targetPath, (err) => {
-//       if (err) {
-//         return console.log(err);
-//       }
-//       console.log("id", id);
-//       res.status(200).send(id);
-//     });
-//   } else {
-//     fs.unlink(tempPath, (err) => {
-//       if (err) return console.log(err);
+  if (
+    path.extname(req.file.originalname).toLowerCase() === ".png" ||
+    path.extname(req.file.originalname).toLowerCase() === ".jpg" ||
+    path.extname(req.file.originalname).toLowerCase() === ".jpeg"
+  ) {
+    fs.rename(tempPath, targetPath, (err) => {
+      if (err) {
+        return console.log(err);
+      }
+      console.log("id", id);
+      res.status(200).send(id);
+    });
+  } else {
+    fs.unlink(tempPath, (err) => {
+      if (err) return console.log(err);
 
-//       res
-//         .status(403)
-//         .contentType("text/plain")
-//         .send("Only .png files are allowed!");
-//     });
-//   }
-// });
+      res
+        .status(403)
+        .contentType("text/plain")
+        .send("Only .png files are allowed!");
+    });
+  }
+});
 
 //Delete user avatar
 router.delete("/users/me/avatar", auth, async (req, res) => {

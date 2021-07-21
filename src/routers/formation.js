@@ -39,9 +39,8 @@ router.get("/formations", async (req, res) => {
   const sort = {};
 
   if (req.query.sortBy) {
-    // const parts = req.query.sortBy.split("_");
-    // sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
-    sort = -1;
+    const parts = req.query.sortBy.split("_");
+    sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
   }
 
   try {
@@ -63,8 +62,8 @@ router.get("/center/formations/:id", async (req, res) => {
   const sort = {};
 
   if (req.query.sortBy) {
-    // const parts = req.query.sortBy.split("_");
-    sort = -1;
+    const parts = req.query.sortBy.split("_");
+    sort[parts[0]] = parts[1] === "desc" ? -1 : 1;
   }
 
   try {
@@ -121,7 +120,7 @@ router.get("/formations/inscriptions", centerAuth, async (req, res) => {
           };
           subscribers.push(subscriber);
         }
-        res.status(200).send(subscribers);
+        res.status(200).send([...subscribers].reverse());
       });
 
     // formation.populate("subscribers").execPopulate(function (error, formation) {
@@ -209,7 +208,11 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   const id = uniqid();
   const targetPath = path.join(__dirname, `../upload/${id}.png`);
 
-  if (path.extname(req.file.originalname).toLowerCase() === ".png") {
+  if (
+    path.extname(req.file.originalname).toLowerCase() === ".png" ||
+    path.extname(req.file.originalname).toLowerCase() === ".jpg" ||
+    path.extname(req.file.originalname).toLowerCase() === ".jpeg"
+  ) {
     fs.rename(tempPath, targetPath, (err) => {
       if (err) {
         return console.log(err);

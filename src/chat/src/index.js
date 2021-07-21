@@ -48,6 +48,8 @@ io.on("connection", (socket) => {
     var room = {};
     if (roomId) {
       room = await Room.findById(roomId);
+    } else if(userId && centerId){
+      room = await Room.find({centerId: centerId, userId: userId})
     } else {
       room = new Room({
         centerId: center._id,
@@ -69,7 +71,7 @@ io.on("connection", (socket) => {
     //   users: getUsersInRoom(currentRoom),
     // });
 
-    callback();
+    callback()
   });
 
   //send to everyone

@@ -15,7 +15,7 @@ router.post("/centers", async (req, res) => {
   const center = new Center(req.body);
 
   try {
-    // await center.save();
+    await center.save();
     sendWelcomeEmail(center.email, center.name);
     const token = await center.generateAuthToken();
     res.status(201).send({ center, token });
@@ -152,18 +152,18 @@ const upload = multer({
 });
 
 router.post("/upload/avatar", upload.single("file"), async (req, res) => {
-  const tempPath = req.body.uri;
+  const tempPath = req.file.path;
   const id = uniqid();
   const targetPath = path.join(__dirname, `../upload/${id}.png`);
 
   if (
-    path.extname(req.body.name).toLowerCase() === ".png" ||
-    path.extname(req.body.name).toLowerCase() === ".jpg" ||
-    path.extname(req.body.name).toLowerCase() === ".jpeg"
+    path.extname(req.file.originalname).toLowerCase() === ".png" ||
+    path.extname(req.file.originalname).toLowerCase() === ".jpg" ||
+    path.extname(req.file.originalname).toLowerCase() === ".jpeg"
   ) {
     fs.rename(tempPath, targetPath, (err) => {
       if (err) {
-        return console.log("err ", err);
+        return console.log(err);
       }
       console.log("id", id);
       res.status(200).send(id);

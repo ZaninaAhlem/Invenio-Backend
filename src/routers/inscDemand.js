@@ -27,6 +27,7 @@ router.post("/inscriptiondemand/:id", userAuth, async (req, res) => {
       userId: user._id,
       name: user.name,
       response: req.body.response,
+      avatar: user.avatar,
     });
     await inscDemand[0].save();
     res.status(201).send(inscDemand[0]);
@@ -81,9 +82,9 @@ router.post("/inscription/:id", centerAuth, async (req, res) => {
       inscDemand.responses = inscDemand.responses.filter(
         (item) => item._id != req.body.id
       );
-      // await formation.save();
-      // await user.save();
-      // await inscDemand.save();
+      await formation.save();
+      await user.save();
+      await inscDemand.save();
       return res.status(200).send({
         responses: inscDemand.responses,
         subscribers: formation.subscribers,

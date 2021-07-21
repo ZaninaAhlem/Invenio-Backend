@@ -59,12 +59,12 @@ const centerSchema = new mongoose.Schema(
     },
     phoneNumber: {
       type: Number,
-      required: true,
-      validate(value) {
-        if (!validator.isMobilePhone(value.toString())) {
-          throw new Error("Invalid phone number");
-        }
-      },
+      // required: true,
+      // validate(value) {
+      //   if (!validator.isMobilePhone(value.toString())) {
+      //     throw new Error("Invalid phone number");
+      //   }
+      // },
     },
     categories: [
       {
@@ -130,10 +130,9 @@ centerSchema.methods.generateAuthToken = async function () {
     process.env.JWT_SECRET
   );
 
-  console.log(token);
-  center.tokens = center.tokens.concat({ token });
+  // center.tokens = center.tokens.concat({ token });
 
-  await center.save();
+  // await center.save();
   return token;
 };
 
